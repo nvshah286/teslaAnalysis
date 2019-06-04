@@ -1,0 +1,116 @@
+---
+title: "sentAnalysis"
+author: "Nirav Shah"
+date: "6/3/2019"
+output: html_document
+---
+
+
+# Import Tesla Tweets
+```{r importTwitterData}
+# Load Requried Packages
+library("SnowballC")
+library("tm")
+library("twitteR")
+library("syuzhet")
+library(wordcloud)
+library(dplyr)
+
+# Link for article 
+## http://dataaspirant.com/2018/03/22/twitter-sentiment-analysis-using-r/
+
+# wordcloud
+## http://www.sthda.com/english/wiki/text-mining-and-word-cloud-fundamentals-in-r-5-simple-steps-you-should-know
+
+consumer_key <- 'uywh7uc6DPHYhJ73mEeLOfF5q'
+consumer_secret <- '2LwWl7DsiDbxCi47J5cagTISIjX2NUb5ndLJHz62oiB8cEWHYH'
+access_token <- '111816960-4AL3NF2ZB8QRcHEZpc1mZwM9S03e2eZtGHpKYWs9'
+access_secret <- 'jWBqIHZoqAeuQ0YudODF2z969dsR4PS0er3QmcpEHec5A'
+
+
+setup_twitter_oauth(consumer_key, consumer_secret, access_token, access_secret)
+Ytweets <- searchTwitter("tsla + TESLA + TSLA", n=10000)
+
+
+## data cleaning on tweets 
+tslaDF <- twListToDF(Ytweets)
+
+
+tslaClean <- gsub("http.*","",tslaDF$text)
+tslaClean <- gsub("https.*","",tslaClean)
+tslaClean <- gsub("#.*","",tslaClean)
+tslaClean <- gsub("@\\w+ *","",tslaClean)
+tslaClean <- gsub("[[:punct:]]", " ", tslaClean)
+
+```
+
+# Word Cloud Analysis and most frequent words
+```{r}
+docs <- Corpus(VectorSource(tslaClean))
+
+
+toSpace <- content_transformer(function (x , pattern ) gsub(pattern, " ", x))
+docs <- tm_map(docs, toSpace, "/")
+docs <- tm_map(docs, toSpace, "@")
+docs <- tm_map(docs, toSpace, "\\|")
+
+
+# Convert the text to lower case
+docs <- tm_map(docs, content_transformer(tolower))
+# Remove numbers
+docs <- tm_map(docs, removeNumbers)
+# Remove english common stopwords
+docs <- tm_map(docs, removeWords, c(stopwords(), "will", "now"))
+# Remove your own stop word
+# specify your stopwords as a character vector
+docs <- tm_map(docs, removeWords, c("tsla", "tesla", "tslaq","model", "elon", "elonmusk", " …", "RT")) 
+# Remove punctuations
+docs <- tm_map(docs, removePunctuation)
+# Eliminate extra white spaces
+docs <- tm_map(docs, stripWhitespace)
+
+docs <- tm_map(docs, stemDocument)
+
+dtm <- TermDocumentMatrix(docs)
+m <- as.matrix(dtm)
+v <- sort(rowSums(m),decreasing=TRUE)
+d <- data.frame(word = names(v),freq=v)
+head(d, 10)
+
+
+set.seed(1234)
+wordcloud(words = d$word, freq = d$freq, min.freq = 1,
+          max.words=200, random.order=FALSE, rot.per=0.35, 
+          colors=brewer.pal(8, "Dark2"))
+
+
+barplot(d[1:10,]$freq, las = 2, names.arg = d[1:10,]$word,
+        col ="lightblue", main ="Most frequent words",
+        ylab = "Word frequencies")
+```
+
+# Sent Score 
+
+```{r}
+## getting the sentiment score for each tweet 
+word.df <- as.vector(tslaClean)
+emotion.df <- get_nrc_sentiment(word.df)
+emotion.df2 <- cbind(tslaClean, emotion.df) 
+head(emotion.df2)
+
+## chart 1 for the studying the emotions
+barplot(apply(emotion.df, MARGIN = 2,sum))
+
+
+## chart 2 for studying the sentiments 
+sent.value <- get_sentiment(word.df)
+sent.value2 <- cbind.data.frame(tslaDF, sent.value)
+sent.value2$created <- format(sent.value2$created, "%Y/%m/%d")
+
+
+timeSerSent <- sent.value2 %>% group_by(created) %>% summarise(sentscore = mean(sent.value))
+
+plot(x = as.Date(timeSerSent$created), y = timeSerSent$sentscore, type ='b', main = ' Sent Score for TSLA tweets')
+
+```
+
