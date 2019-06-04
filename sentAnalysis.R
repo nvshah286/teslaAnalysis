@@ -27,9 +27,10 @@ barplot(apply(emotion.df, MARGIN = 2,sum))
 ## chart 2 for studying the sentiments 
 sent.value <- get_sentiment(word.df)
 sent.value2 <- cbind.data.frame(tslaDF, sent.value)
-sent.value2$created <- format(sent.value2$created, "%Y/%m/%d")
+sent.value2$created <- format(sent.value2$created, "%Y-%m-%d")
 
 
 timeSerSent <- sent.value2 %>% group_by(created) %>% summarise(sentscore = mean(sent.value))
+
 
 plot(x = as.Date(timeSerSent$created), y = timeSerSent$sentscore, type ='b', main = ' Sent Score for TSLA tweets')

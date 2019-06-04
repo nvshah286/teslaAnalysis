@@ -17,7 +17,7 @@ access_secret <- 'jWBqIHZoqAeuQ0YudODF2z969dsR4PS0er3QmcpEHec5A'
 
 
 setup_twitter_oauth(consumer_key, consumer_secret, access_token, access_secret)
-Ytweets <- searchTwitter("tsla + TESLA + TSLA", n=10000)
+Ytweets <- searchTwitter("tsla + TESLA + TSLA", n=20000)
 
 
 ## data cleaning on tweets 
